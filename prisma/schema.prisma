@@ -1,0 +1,124 @@
+datasource db {
+  provider = "mongodb"
+  url      = "mongodb+srv://portfolio:portfolio@portfolio.jgnczcs.mongodb.net/smart-portfolio?retryWrites=true&w=majorityappName=portfolio"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum LedgerType {
+  DEPOSIT
+  WITHDRAW
+  INVEST
+  SELL
+  FEE
+}
+
+enum TradeSide {
+  BUY
+  SELL
+}
+
+model User {
+  id         String         @id @default(auto()) @map("_id") @db.ObjectId
+  externalId String         @unique
+  wallets    Wallet[]
+  portfolios Portfolio[]
+  ledgers    WalletLedger[]
+  trades     Trade[]
+  createdAt  DateTime       @default(now())
+}
+
+model Wallet {
+  id        String         @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String         @db.ObjectId
+  user      User           @relation(fields: [userId], references: [id])
+  cashCents Int            @default(0)
+  ledgers   WalletLedger[]
+  updatedAt DateTime       @updatedAt
+
+  @@index([userId])
+}
+
+model WalletLedger {
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  walletId   String     @db.ObjectId
+  wallet     Wallet     @relation(fields: [walletId], references: [id])
+  userId     String     @db.ObjectId
+  user       User       @relation(fields: [userId], references: [id])
+  type       LedgerType
+  amountCents Int
+  metaJson   String     @default("{}")
+  createdAt  DateTime   @default(now())
+
+  @@index([walletId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Portfolio {
+  id         String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String      @db.ObjectId
+  user       User        @relation(fields: [userId], references: [id])
+  name       String      @default("Default")
+  positions  Position[]
+  trades     Trade[]
+  valuations Valuation[]
+  createdAt  DateTime    @default(now())
+
+  @@index([userId])
+}
+
+model Position {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  portfolioId  String   @db.ObjectId
+  portfolio    Portfolio @relation(fields: [portfolioId], references: [id])
+  ticker       String
+  quantity     Float    @default(0)
+  avgCostCents Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  @@index([portfolioId])
+  @@index([ticker])
+}
+
+model Trade {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  portfolioId     String    @db.ObjectId
+  portfolio       Portfolio @relation(fields: [portfolioId], references: [id])
+  userId          String    @db.ObjectId
+  user            User      @relation(fields: [userId], references: [id])
+  ticker          String
+  side            TradeSide
+  priceCents      Int
+  quantity        Float
+  valueCents      Int
+  feesCents       Int       @default(0)
+  realizedPnlCents Int      @default(0)
+  createdAt       DateTime  @default(now())
+
+  @@index([portfolioId])
+  @@index([userId])
+  @@index([ticker])
+  @@index([createdAt])
+}
+
+model Valuation {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  portfolioId String   @db.ObjectId
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id])
+  date        DateTime
+  cashCents   Int
+  equityCents Int
+  totalCents  Int
+
+  @@index([portfolioId])
+  @@index([date])
+}
+
+model Setting {
+  id    String @id @default(auto()) @map("_id") @db.ObjectId
+  key   String @unique
+  value String
+}
