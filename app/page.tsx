@@ -37,6 +37,7 @@ export default function Dashboard() {
     const [demoMode, setDemoMode] = useState(false);
 
     const [loading, setLoading] = useState(false);
+    const [exportLoading, setExportLoading] = useState(false);
     const [error, setError] = useState("");
     const [tickersData, setTickersData] = useState<TickerData[]>([]);
     const [expectedReturns, setExpectedReturns] = useState<number[]>([]);
@@ -152,6 +153,53 @@ export default function Dashboard() {
             toast.error(err.message);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleExportData = async (format: "csv" | "xlsx") => {
+        if (tickerList.length === 0) {
+            toast.error("Add at least one ticker first");
+            return;
+        }
+
+        setExportLoading(true);
+        try {
+            const response = await fetch("/api/data/export", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    tickers: tickerList,
+                    startDate,
+                    endDate,
+                    format,
+                    demoMode,
+                }),
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || "Export failed");
+            }
+
+            const blob = await response.blob();
+            const disposition = response.headers.get("Content-Disposition") || "";
+            const match = disposition.match(/filename=\"?([^\"]+)\"?/i);
+            const fileName = match?.[1] || `yahoo-data.${format}`;
+
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+
+            toast.success(`Downloaded ${fileName}`);
+        } catch (err: any) {
+            toast.error(err.message || "Export failed");
+        } finally {
+            setExportLoading(false);
         }
     };
 
@@ -662,6 +710,28 @@ export default function Dashboard() {
                                 {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
                                 {loading ? runningStep : "Optimize Portfolio"}
                             </LightBeamButton>
+
+                            <div className="grid grid-cols-2 gap-2">
+                                <LightBeamButton
+                                    onClick={() => handleExportData("csv")}
+                                    disabled={loading || exportLoading || tickerList.length === 0}
+                                    className="w-full py-2 text-sm font-semibold"
+                                    gradientColors={["#3b82f6", "#a855f7", "#3b82f6"]}
+                                >
+                                    {exportLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                    Export CSV
+                                </LightBeamButton>
+
+                                <LightBeamButton
+                                    onClick={() => handleExportData("xlsx")}
+                                    disabled={loading || exportLoading || tickerList.length === 0}
+                                    className="w-full py-2 text-sm font-semibold"
+                                    gradientColors={["#3b82f6", "#a855f7", "#3b82f6"]}
+                                >
+                                    {exportLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                    Export Excel
+                                </LightBeamButton>
+                            </div>
 
                             {error && (
                                 <div className="flex items-start space-x-2 p-3 bg-red-950/50 border border-red-800 rounded-md">
