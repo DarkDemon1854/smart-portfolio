@@ -24,7 +24,7 @@ type ExportRow = {
 
 function toCsv(rows: ExportRow[]): string {
     const headers = ["ticker", "date", "open", "high", "low", "close", "volume"];
-    const body = rows.map((r) => [r.ticker, r.date, r.open, r.high, r.low, r.close, r.volume].join(","));
+    const body = rows.map((r) => [r.ticker, `="${r.date}"`, r.open, r.high, r.low, r.close, r.volume].join(","));
     return [headers.join(","), ...body].join("\n");
 }
 
